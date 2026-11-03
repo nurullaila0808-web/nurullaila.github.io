@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ECO-TUG Battle - Tarik Tambang Ekosistem</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #1b4332 0%, #081c15 100%);
+            overflow-x: hidden;
+            height: 100vh;
+        }
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+        
+        /* Batik Pattern Overlay */
+        .batik-bg {
+            background-color: #2d6a4f;
+            background-image: radial-gradient(#52b788 1.5px, transparent 1.5px), radial-gradient(#52b788 1.5px, #2d6a4f 1.5px);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            opacity: 0.15;
+        }
+
+        /* Megamendung Header Pattern border */
+        .border-megamendung {
+            border-image: linear-gradient(to right, #d97706, #f59e0b, #059669, #2563eb, #7c3aed) 1;
+        }
+
+        /* Touch Button Animations */
+        .btn-answer {
+            transition: all 0.15s ease-out;
+            touch-action: manipulation;
+        }
+        .btn-answer:active {
+            transform: scale(0.95);
+        }
+
+        /* Custom Rope Canvas Container */
+        .rope-container {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Shake animation for wrong answer */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Pulse highlight for current turn */
+        .turn-active {
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+            border-color: #f59e0b !important;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen justify-between relative overflow-hidden text-white select-none">
+
+    <!-- Decorative Batik Background -->
+    <div class="absolute inset-0 batik-bg pointer-events-none"></div>
+
+    <!-- MAIN HEADER -->
+    <header class="relative z-10 bg-emerald-950/80 backdrop-blur-md px-4 py-2 border-b-4 border-amber-500 shadow-xl flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <span class="text-3xl">🌿</span>
+            <div>
+                <h1 class="font-game text-xl md:text-3xl text-amber-400 tracking-wider drop-shadow-md">ECO-TUG BATTLE</h1>
+                <p class="text-xs md:text-sm text-emerald-200 font-semibold">Tarik Tambang Ekosistem • Kelas V SD</p>
+            </div>
+        </div>
+
+        <!-- Question Counter & Audio Toggle -->
+        <div class="flex items-center space-x-4">
+            <div class="bg-amber-500/20 border border-amber-400/40 rounded-full px-4 py-1.5 flex items-center space-x-2">
+                <i class="fa-solid fa-list-check text-amber-400"></i>
+                <span class="text-sm font-bold text-amber-200">Soal: <span id="q-counter" class="text-white text-base">1</span>/10</span>
+            </div>
+            <!-- BGM & SFX TOGGLE BUTTONS -->
+            <button id="btn-bgm" onclick="toggleBGM()" class="bg-amber-700 hover:bg-amber-600 px-3 py-2 rounded-lg text-xs md:text-sm font-bold shadow-md flex items-center space-x-1 border border-amber-400 text-amber-100">
+                <i id="bgm-icon" class="fa-solid fa-music"></i>
+                <span class="hidden sm:inline">Musik</span>
+            </button>
+            <button id="btn-sound" onclick="toggleSound()" class="bg-emerald-800 hover:bg-emerald-700 w-10 h-10 rounded-full flex items-center justify-center border border-emerald-400 text-amber-300 shadow-md">
+                <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+            <button onclick="restartGame()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold shadow-md flex items-center space-x-1">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span class="hidden sm:inline">Ulang</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- TUG OF WAR CANVAS DISPLAY (TOP / MIDDLE CENTER) -->
+    <div class="relative z-10 px-4 pt-2 pb-1 flex-none">
+        <div class="max-w-6xl mx-auto rope-container rounded-2xl p-3 shadow-2xl">
+            <!-- Score & Avatars Row -->
+            <div class="flex justify-between items-center mb-2 px-2">
+                <!-- Team A Info -->
+                <div class="flex items-center space-x-2 md:space-x-3">
+                    <div class="w-12 h-12 md:w-16 md:h-16 rounded-full bg-orange-600 border-2 border-amber-300 flex items-center justify-center text-2xl md:text-3xl shadow-lg relative overflow-hidden">
+                        🐯
+                        <span class="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-center text-amber-200 font-bold py-0.5">HARIMAU</span>
+                    </div>
+                    <div>
+                        <div class="font-game text-xs md:text-sm text-orange-400">TIM MERAH-PUTIH</div>
+                        <div class="text-xl md:text-3xl font-black text-white" id="score-team-a">0 <span class="text-xs text-emerald-300 font-normal">Poin</span></div>
+                    </div>
+                </div>
+
+                <!-- Center Trophy & Status -->
+                <div class="text-center">
+                    <div class="font-game text-xs md:text-sm text-amber-400 bg-amber-950/60 px-3 py-1 rounded-full border border-amber-500/30">
+                        <i class="fa-solid fa-trophy mr-1"></i> GOSOK & TARIK!
+                    </div>
+                    <div id="game-status-msg" class="text-xs text-emerald-200 font-semibold mt-1">Jawab benar untuk menarik tali!</div>
+                </div>
+
+                <!-- Team B Info -->
+                <div class="flex items-center space-x-2 md:space-x-3 flex-row-reverse space-x-reverse">
+                    <div class="w-12 h-12 md:w-16 md:h-16 rounded-full bg-blue-600 border-2 border-cyan-300 flex items-center justify-center text-2xl md:text-3xl shadow-lg relative overflow-hidden">
+                        🦅
+                        <span class="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-center text-cyan-200 font-bold py-0.5">ELANG</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-game text-xs md:text-sm text-blue-400">TIM GARUDA</div>
+                        <div class="text-xl md:text-3xl font-black text-white" id="score-team-b">0 <span class="text-xs text-emerald-300 font-normal">Poin</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tug Visual Area (Interactive Rope Canvas) -->
+            <div class="relative w-full h-16 md:h-20 bg-emerald-950/80 rounded-xl border border-emerald-700/50 overflow-hidden flex items-center px-4">
+                <!-- Background Field Lines -->
+                <div class="absolute inset-0 flex justify-between pointer-events-none opacity-20">
+                    <div class="w-1/4 h-full border-r-2 border-dashed border-white"></div>
+                    <div class="w-1/2 h-full border-r-2 border-amber-400"></div>
+                    <div class="w-1/4 h-full border-l-2 border-dashed border-white"></div>
+                </div>
+
+                <!-- Rope Line & Flag Container -->
+                <div id="rope-track" class="relative w-full h-8 flex items-center transition-all duration-500 ease-out">
+                    <!-- Rope Texture -->
+                    <div class="w-full h-4 bg-amber-700 rounded-full shadow-inner border-y border-amber-900 relative flex items-center">
+                        <div class="w-full h-full bg-[radial-gradient(#d97706_2px,transparent_2px)] [background-size:8px_8px] opacity-60"></div>
+                    </div>
+                    
+                    <!-- Team Pullers Visual -->
+                    <div id="puller-left" class="absolute left-0 -top-4 text-2xl md:text-3xl transition-transform duration-300">
+                        🤼‍♂️
+                    </div>
+                    <div id="puller-right" class="absolute right-0 -top-4 text-2xl md:text-3xl transition-transform duration-300 transform scale-x-[-1]">
+                        🤼‍♀️
+                    </div>
+
+                    <!-- Center Ribbon Marker -->
+                    <div id="rope-flag" class="absolute left-1/2 -translate-x-1/2 -top-5 flex flex-col items-center transition-all duration-500 ease-out">
+                        <div class="w-6 h-7 bg-red-600 rounded-b-md shadow-lg border-2 border-white flex items-center justify-center font-bold text-xs text-white">
+                            🇮🇩
+                        </div>
+                        <div class="w-1 h-6 bg-amber-300 shadow-md"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BATTLE PANELS (DUAL SCREEN SPLIT FOR BOTH TEAMS) -->
+    <main class="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 p-3 max-w-7xl mx-auto w-full overflow-y-auto">
+
+        <!-- TEAM A (LEFT PANEL - HARIMAU SUMATRA) -->
+        <section id="panel-team-a" class="bg-gradient-to-b from-orange-950/60 to-emerald-950/80 backdrop-blur-md rounded-2xl p-4 border-2 border-orange-500/40 flex flex-col justify-between shadow-xl">
+            <div>
+                <!-- Panel Header -->
+                <div class="flex justify-between items-center pb-2 border-b border-orange-500/30 mb-3">
+                    <span class="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                        🐯 TIM HARIMAU (KIRI)
+                    </span>
+                    <span id="feedback-a" class="text-xs font-bold text-emerald-400 h-5"></span>
+                </div>
+
+                <!-- Question Text -->
+                <div class="bg-black/40 rounded-xl p-3 border border-orange-400/20 mb-3 min-h-[90px] flex items-center">
+                    <p id="q-text-a" class="text-sm md:text-base font-semibold leading-relaxed text-amber-100">
+                        Memuat Pertanyaan...
+                    </p>
+                </div>
+
+                <!-- Answer Options Grid -->
+                <div id="options-container-a" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <!-- Dynamic Buttons Generated Here -->
+                </div>
+            </div>
+
+            <div class="mt-3 pt-2 border-t border-white/10 text-center">
+                <span class="text-[11px] text-orange-200/70">Tekan jawaban yang benar untuk menarik tali ke Kiri!</span>
+            </div>
+        </section>
+
+        <!-- TEAM B (RIGHT PANEL - ELANG JAWA) -->
+        <section id="panel-team-b" class="bg-gradient-to-b from-blue-950/60 to-emerald-950/80 backdrop-blur-md rounded-2xl p-4 border-2 border-blue-500/40 flex flex-col justify-between shadow-xl">
+            <div>
+                <!-- Panel Header -->
+                <div class="flex justify-between items-center pb-2 border-b border-blue-500/30 mb-3">
+                    <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                        🦅 TIM ELANG (KANAN)
+                    </span>
+                    <span id="feedback-b" class="text-xs font-bold text-emerald-400 h-5"></span>
+                </div>
+
+                <!-- Question Text -->
+                <div class="bg-black/40 rounded-xl p-3 border border-blue-400/20 mb-3 min-h-[90px] flex items-center">
+                    <p id="q-text-b" class="text-sm md:text-base font-semibold leading-relaxed text-cyan-100">
+                        Memuat Pertanyaan...
+                    </p>
+                </div>
+
+                <!-- Answer Options Grid -->
+                <div id="options-container-b" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <!-- Dynamic Buttons Generated Here -->
+                </div>
+            </div>
+
+            <div class="mt-3 pt-2 border-t border-white/10 text-center">
+                <span class="text-[11px] text-cyan-200/70">Tekan jawaban yang benar untuk menarik tali ke Kanan!</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER WITH KEARIFAN LOKAL MOTIF -->
+    <footer class="relative z-10 bg-emerald-950/90 border-t border-amber-500/30 py-1.5 px-4 text-center text-xs text-emerald-300/80 flex justify-between items-center">
+        <span>🇮🇩 Pembelajaran IPAS Kelas V - Ekosistem Nusantara</span>
+        <span class="hidden sm:inline">Modul Digitalisasi EFP / IFP Touchscreen</span>
+    </footer>
+
+    <!-- WINNER MODAL / CELEBRATION OVERLAY -->
+    <div id="modal-winner" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex items-center justify-center p-4 hidden">
+        <div class="bg-gradient-to-b from-emerald-900 to-emerald-950 border-4 border-amber-400 rounded-3xl p-6 max-w-md w-full text-center shadow-2xl relative overflow-hidden">
+            <!-- Batik background overlay in modal -->
+            <div class="absolute inset-0 batik-bg opacity-20 pointer-events-none"></div>
+
+            <div class="relative z-10">
+                <div id="winner-badge" class="w-24 h-24 mx-auto mb-3 bg-amber-400 rounded-full flex items-center justify-center text-5xl shadow-xl border-4 border-white animate-bounce">
+                    🏆
+                </div>
+
+                <h2 id="winner-title" class="font-game text-2xl md:text-3xl text-amber-300 mb-1">
+                    TIM HARIMAU MENANG!
+                </h2>
+                <p id="winner-sub" class="text-emerald-100 text-sm mb-4">
+                    Hebat sekali! Kalian adalah Juara Ekosistem Nusantara!
+                </p>
+
+                <!-- Final Score Summary -->
+                <div class="bg-black/50 rounded-2xl p-4 border border-emerald-500/30 mb-6 space-y-2">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-orange-400 font-bold">🐯 Tim Harimau:</span>
+                        <span id="final-score-a" class="text-white font-black text-lg">0 Poin</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm border-t border-white/10 pt-2">
+                        <span class="text-blue-400 font-bold">🦅 Tim Elang:</span>
+                        <span id="final-score-b" class="text-white font-black text-lg">0 Poin</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 justify-center">
+                    <button onclick="restartGame()" class="bg-amber-500 hover:bg-amber-400 text-emerald-950 font-black px-6 py-3 rounded-xl text-base shadow-lg transition transform active:scale-95 flex items-center gap-2">
+                        <i class="fa-solid fa-gamepad"></i> MAIN LAGI
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT GAME LOGIC -->
+    <script>
+        /* ==========================================================================
+           1. GAME QUESTIONS DATASET (IPAS Kelas 5 SD - Ekosistem)
+           ========================================================================== */
+        const questionsList = [
+            {
+                q: "Di dalam ekosistem sawah, mahluk hidup yang berperan sebagai Produsen adalah...",
+                options: ["Tikus", "Padi", "Ular", "Elang"],
+                answer: 1
+            },
+            {
+                q: "Hewan pemakan tumbuhan (herbivora) dalam rantai makanan menduduki tingkat...",
+                options: ["Konsumen I", "Konsumen II", "Produsen", "Pengurai"],
+                answer: 0
+            },
+            {
+                q: "Komponen abiotik yang sangat dibutuhkan tumbuhan hijau untuk proses fotosintesis adalah...",
+                options: ["Cacing & Bakteri", "Cahaya Matahari & Air", "Ular & Burung", "Pupuk & Jamur"],
+                answer: 1
+            },
+            {
+                q: "Organisme yang bertugas menguraikan sisa mahluk hidup yang telah mati menjadi hara tanah adalah...",
+                options: ["Harimau", "Belalang", "Bakteri & Jamur", "Tanaman Padi"],
+                answer: 2
+            },
+            {
+                q: "Apa yang terjadi pada populasi katak jika populasi belalang di kebun menurun drastis?",
+                options: ["Katak bertambah banyak", "Katak berkurang karena kekurangan makanan", "Katak berubah jadi produsen", "Tidak ada pengaruh"],
+                answer: 1
+            },
+            {
+                q: "Ekosistem khas Indonesia berupa hutan di muara sungai yang melindungi pantai dari abrasi laut adalah...",
+                options: ["Hutan Bakau (Mangrove)", "Hutan Pinus", "Padang Rumput", "Ekosistem Danau"],
+                answer: 0
+            },
+            {
+                q: "Kumpulan dari beberapa rantai makanan yang saling berhubungan dalam suatu ekosistem disebut...",
+                options: ["Piramida Makanan", "Jaring-jaring Makanan", "Komunitas Hewan", "Daur Hidup"],
+                answer: 1
+            },
+            {
+                q: "Hewan yang memangsa hewan lain dalam rantai makanan dinamakan...",
+                options: ["Predator / Pemangsa", "Produsen Utama", "Pengurai Utama", "Tumbuhan Inang"],
+                answer: 0
+            },
+            {
+                q: "Di ekosistem laut Nusantara, organisme mikroskopis hijau yang berperan sebagai produsen utama adalah...",
+                options: ["Ikan Hiu", "Fitoplankton", "Zooplankton", "Terumbu Karang"],
+                answer: 1
+            },
+            {
+                q: "Berikut ini yang merupakan contoh hubungan ketergantungan komponen biotik dan abiotik adalah...",
+                options: ["Ular memakan tikus", "Cacing membuat tanah menjadi subur", "Tumbuhan memerlukan sinar matahari", "Elang memburu kelinci"],
+                answer: 2
+            }
+        ];
+
+        /* ==========================================================================
+           2. GAME STATE MANAGEMENT
+           ========================================================================== */
+        let indexA = 0;
+        let indexB = 0;
+        let scoreA = 0;
+        let scoreB = 0;
+        let ropePosition = 0; // -50 (Left Wins) to +50 (Right Wins), 0 is Center
+        const PULL_STEP = 10; // Percent shift per correct answer
+        const TOTAL_QUESTIONS = questionsList.length;
+        let soundEnabled = true;
+        let bgmEnabled = true;
+
+        /* ==========================================================================
+           3. GAMELAN PENTATONIC BGM & SFX SYNTHESIZER (Web Audio API)
+           ========================================================================== */
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let bgmInterval = null;
+        let bgmStep = 0;
+
+        // Pelog/Slendro Inspired Pentatonic Frequencies (Hz)
+        const gamelanScale = [
+            261.63, // C4 (Ji)
+            293.66, // D4 (Ro)
+            329.63, // E4 (Lu)
+            392.00, // G4 (Ma)
+            440.00, // A4 (Nem)
+            523.25, // C5 (Ji tinggi)
+            587.33  // D5 (Ro tinggi)
+        ];
+
+        // 16-step Gamelan Rhythm Melody Sequence
+        const bgmPattern = [
+            0, 2, 3, 5, 2, 3, 4, 1,
+            0, 3, 2, 4, 5, 3, 1, 0
+        ];
+        const bassPattern = [
+            0, -1, 0, -1, 3, -1, 0, -1,
+            0, -1, 2, -1, 0, -1, 4, -1
+        ];
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function startBGM() {
+            if (bgmInterval || !bgmEnabled) return;
+            initAudio();
+
+            bgmStep = 0;
+            bgmInterval = setInterval(() => {
+                if (!bgmEnabled) return;
+                playGamelanStep(bgmStep);
+                bgmStep = (bgmStep + 1) % bgmPattern.length;
+            }, 180); // Tempo ~166 BPM (Ceria)
+        }
+
+        function stopBGM() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        }
+
+        function playGamelanStep(step) {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            const now = audioCtx.currentTime;
+
+            // Main Melody (Bonang/Saron Synth)
+            const noteIdx = bgmPattern[step];
+            if (noteIdx !== -1) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                // Metallic Bell timbre (Gamelan effect)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(gamelanScale[noteIdx], now);
+                
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+
+            // Bass/Gong hit every 4 steps
+            const bassIdx = bassPattern[step];
+            if (bassIdx !== -1) {
+                const bassOsc = audioCtx.createOscillator();
+                const bassGain = audioCtx.createGain();
+
+                bassOsc.type = 'triangle';
+                bassOsc.frequency.setValueAtTime(gamelanScale[bassIdx] / 2, now); // 1 Octave lower
+
+                bassGain.gain.setValueAtTime(0.12, now);
+                bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+                bassOsc.connect(bassGain);
+                bassGain.connect(audioCtx.destination);
+                bassOsc.start(now);
+                bassOsc.stop(now + 0.4);
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'correct') {
+                // Chord victory chime
+                [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.06);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.06);
+                    osc.stop(now + idx * 0.06 + 0.3);
+                });
+            } else if (type === 'wrong') {
+                // Low error buzz
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'win') {
+                // Celebration fanfare
+                const fanfare = [400, 500, 600, 800, 1000];
+                fanfare.forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + idx * 0.1);
+                    g.gain.setValueAtTime(0.3, now + idx * 0.1);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.25);
+                    o.start(now + idx * 0.1);
+                    o.stop(now + idx * 0.1 + 0.25);
+                });
+            } else if (type === 'click') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(450, now);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            icon.className = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
+        }
+
+        function toggleBGM() {
+            bgmEnabled = !bgmEnabled;
+            const btn = document.getElementById('btn-bgm');
+            const icon = document.getElementById('bgm-icon');
+
+            if (bgmEnabled) {
+                btn.className = 'bg-amber-700 hover:bg-amber-600 px-3 py-2 rounded-lg text-xs md:text-sm font-bold shadow-md flex items-center space-x-1 border border-amber-400 text-amber-100';
+                icon.className = 'fa-solid fa-music';
+                startBGM();
+            } else {
+                btn.className = 'bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-lg text-xs md:text-sm font-bold shadow-md flex items-center space-x-1 border border-gray-500 text-gray-400';
+                icon.className = 'fa-solid fa-music-slash';
+                stopBGM();
+            }
+        }
+
+        /* ==========================================================================
+           4. RENDER & LOGIC ENGINE
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            initGame();
+        });
+
+        // User interaction trigger for audio autoplay policy
+        document.body.addEventListener('pointerdown', () => {
+            initAudio();
+            if (bgmEnabled && !bgmInterval) {
+                startBGM();
+            }
+        }, { once: true });
+
+        function initGame() {
+            indexA = 0;
+            indexB = 0;
+            scoreA = 0;
+            scoreB = 0;
+            ropePosition = 0;
+
+            document.getElementById('score-team-a').innerText = '0 Poin';
+            document.getElementById('score-team-b').innerText = '0 Poin';
+            document.getElementById('modal-winner').classList.add('hidden');
+            
+            updateRopePosition();
+            renderQuestion('A');
+            renderQuestion('B');
+            updateHeaderCounter();
+
+            if (bgmEnabled && audioCtx && audioCtx.state === 'running') {
+                startBGM();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'correct') {
+                // Happy chord chime
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2); // G5
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'wrong') {
+                // Low buzz sound
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'win') {
+                // Fanfare melody
+                const notes = [400, 500, 600, 800];
+                notes.forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + idx * 0.12);
+                    g.gain.setValueAtTime(0.3, now + idx * 0.12);
+                    g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.2);
+                    o.start(now + idx * 0.12);
+                    o.stop(now + idx * 0.12 + 0.2);
+                });
+            } else if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark';
+            }
+        }
+
+        /* ==========================================================================
+           4. RENDER & LOGIC ENGINE
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            initGame();
+        });
+
+        function initGame() {
+            indexA = 0;
+            indexB = 0;
+            scoreA = 0;
+            scoreB = 0;
+            ropePosition = 0;
+
+            document.getElementById('score-team-a').innerText = '0 Poin';
+            document.getElementById('score-team-b').innerText = '0 Poin';
+            document.getElementById('modal-winner').classList.add('hidden');
+            
+            updateRopePosition();
+            renderQuestion('A');
+            renderQuestion('B');
+            updateHeaderCounter();
+        }
+
+        function updateHeaderCounter() {
+            const currentMax = Math.max(indexA + 1, indexB + 1);
+            document.getElementById('q-counter').innerText = Math.min(currentMax, TOTAL_QUESTIONS);
+        }
+
+        function renderQuestion(team) {
+            const isTeamA = team === 'A';
+            const index = isTeamA ? indexA : indexB;
+            const container = document.getElementById(isTeamA ? 'options-container-a' : 'options-container-b');
+            const qText = document.getElementById(isTeamA ? 'q-text-a' : 'q-text-b');
+            const feedback = document.getElementById(isTeamA ? 'feedback-a' : 'feedback-b');
+
+            feedback.innerText = '';
+
+            // Check if team finished all questions
+            if (index >= TOTAL_QUESTIONS) {
+                qText.innerHTML = `<span class="text-emerald-400 font-bold">🎉 Tim telah menyelesaikan seluruh pertanyaan! Menunggu pertandingan selesai...</span>`;
+                container.innerHTML = '';
+                checkGameEnd();
+                return;
+            }
+
+            const currentQ = questionsList[index];
+            qText.innerText = `${index + 1}. ${currentQ.q}`;
+            container.innerHTML = '';
+
+            const optionLabels = ['A', 'B', 'C', 'D'];
+            const btnColorClass = isTeamA 
+                ? 'bg-gradient-to-r from-orange-900/80 to-amber-900/80 hover:from-orange-800 hover:to-amber-800 border-orange-500/50 text-amber-100'
+                : 'bg-gradient-to-r from-blue-900/80 to-cyan-900/80 hover:from-blue-800 hover:to-cyan-800 border-blue-500/50 text-cyan-100';
+
+            currentQ.options.forEach((optText, optIdx) => {
+                const btn = document.createElement('button');
+                btn.className = `btn-answer w-full p-3.5 md:p-4 rounded-xl border text-left flex items-start space-x-3 text-xs md:text-sm font-semibold shadow-md active:scale-95 ${btnColorClass}`;
+                btn.onclick = () => handleAnswer(team, optIdx, btn);
+                
+                btn.innerHTML = `
+                    <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold flex-none border border-white/20">${optionLabels[optIdx]}</span>
+                    <span class="flex-1 leading-snug">${optText}</span>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(team, selectedIdx, btnElement) {
+            playSound('click');
+            const isTeamA = team === 'A';
+            const currentIndex = isTeamA ? indexA : indexB;
+            
+            if (currentIndex >= TOTAL_QUESTIONS) return;
+
+            const qData = questionsList[currentIndex];
+            const feedbackEl = document.getElementById(isTeamA ? 'feedback-a' : 'feedback-b');
+            const panelEl = document.getElementById(isTeamA ? 'panel-team-a' : 'panel-team-b');
+
+            // Lock buttons briefly to prevent double clicking
+            const container = document.getElementById(isTeamA ? 'options-container-a' : 'options-container-b');
+            const buttons = container.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+
+            if (selectedIdx === qData.answer) {
+                // --- CORRECT ANSWER ---
+                playSound('correct');
+                feedbackEl.className = 'text-xs font-bold text-emerald-400 animate-pulse';
+                feedbackEl.innerText = '✓ BENAR! Tali ditarik!';
+                btnElement.classList.add('bg-emerald-600', 'border-emerald-400', 'text-white');
+
+                if (isTeamA) {
+                    scoreA += 10;
+                    ropePosition = Math.max(-50, ropePosition - PULL_STEP);
+                    document.getElementById('score-team-a').innerText = `${scoreA} Poin`;
+                    indexA++;
+                } else {
+                    scoreB += 10;
+                    ropePosition = Math.min(50, ropePosition + PULL_STEP);
+                    document.getElementById('score-team-b').innerText = `${scoreB} Poin`;
+                    indexB++;
+                }
+
+                updateRopePosition();
+
+            } else {
+                // --- WRONG ANSWER ---
+                playSound('wrong');
+                feedbackEl.className = 'text-xs font-bold text-red-400';
+                feedbackEl.innerText = '✗ SALAH!';
+                btnElement.classList.add('bg-red-700', 'border-red-500', 'text-white');
+                panelEl.classList.add('animate-shake');
+                setTimeout(() => panelEl.classList.remove('animate-shake'), 400);
+
+                if (isTeamA) {
+                    indexA++;
+                } else {
+                    indexB++;
+                }
+            }
+
+            updateHeaderCounter();
+
+            // Next question delay
+            setTimeout(() => {
+                renderQuestion(team);
+                checkGameEnd();
+            }, 800);
+        }
+
+        function updateRopePosition() {
+            const flag = document.getElementById('rope-flag');
+            const pullerLeft = document.getElementById('puller-left');
+            const pullerRight = document.getElementById('puller-right');
+
+            // Translate ropePosition (-50 to +50) to percentage offset (50% is center)
+            // Left pull moves flag left (e.g., 50% - 25% = 25%)
+            const percentOffset = 50 + (ropePosition * 0.8); 
+            flag.style.left = `${percentOffset}%`;
+
+            // Visual effect on pullers
+            if (ropePosition < 0) {
+                pullerLeft.style.transform = 'scale(1.2) translateX(-5px)';
+                pullerRight.style.transform = 'scale-x(-1) scale(0.9)';
+            } else if (ropePosition > 0) {
+                pullerRight.style.transform = 'scale-x(-1) scale(1.2) translateX(-5px)';
+                pullerLeft.style.transform = 'scale(0.9)';
+            } else {
+                pullerLeft.style.transform = 'scale(1)';
+                pullerRight.style.transform = 'scale-x(-1) scale(1)';
+            }
+        }
+
+        function checkGameEnd() {
+            // Game ends if both teams finished 10 questions OR if rope reaches max boundary
+            if ((indexA >= TOTAL_QUESTIONS && indexB >= TOTAL_QUESTIONS) || Math.abs(ropePosition) >= 50) {
+                setTimeout(showWinnerModal, 600);
+            }
+        }
+
+        function showWinnerModal() {
+            playSound('win');
+            triggerConfetti();
+
+            const modal = document.getElementById('modal-winner');
+            const title = document.getElementById('winner-title');
+            const sub = document.getElementById('winner-sub');
+            const badge = document.getElementById('winner-badge');
+            
+            document.getElementById('final-score-a').innerText = `${scoreA} Poin`;
+            document.getElementById('final-score-b').innerText = `${scoreB} Poin`;
+
+            if (scoreA > scoreB || ropePosition <= -40) {
+                badge.innerText = '🐯';
+                title.innerText = 'TIM HARIMAU MENANG!';
+                title.className = 'font-game text-2xl md:text-3xl text-orange-400 mb-1';
+                sub.innerText = 'Selamat! Tim Merah-Putih Harimau berhasil menarik tali ekosistem!';
+            } else if (scoreB > scoreA || ropePosition >= 40) {
+                badge.innerText = '🦅';
+                title.innerText = 'TIM ELANG MENANG!';
+                title.className = 'font-game text-2xl md:text-3xl text-blue-400 mb-1';
+                sub.innerText = 'Selamat! Tim Garuda Elang berhasil memenangkan perlombaan!';
+            } else {
+                badge.innerText = '🤝';
+                title.innerText = 'HASIL SERI!';
+                title.className = 'font-game text-2xl md:text-3xl text-amber-300 mb-1';
+                sub.innerText = 'Kedua tim sama-sama kuat dan paham tentang Ekosistem Nusantara!';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                const duration = 3 * 1000;
+                const end = Date.now() + duration;
+
+                (function frame() {
+                    confetti({
+                        particleCount: 5,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 },
+                        colors: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6']
+                    });
+                    confetti({
+                        particleCount: 5,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 },
+                        colors: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6']
+                    });
+
+                    if (Date.now() < end) {
+                        requestAnimationFrame(frame);
+                    }
+                })();
+            }
+        }
+
+        function restartGame() {
+            playSound('click');
+            initGame();
+        }
+    </script>
+</body>
+</html>
